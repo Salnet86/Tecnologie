@@ -1,27 +1,36 @@
 import socket
-import threading
 
-clients = []
+# 1. Creazione del socket del Server
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-def handle_client(client_socket):
-    while True:
-        message = client_socket.recv(1024).decode()
-        if not message:
-            break
-        broadcast(message, client_socket)
-    clients.remove(client_socket)
-    client_socket.close()
+# 2. Bind: Incolla il socket a un IP e a una Porta specifica di questa macchina
+# "0.0.0.0" significa che accetta connessioni da qualsiasi scheda di rete
+server.bind(("0.0.0.0", 12345))
 
-def broadcast(message, sender_socket):
-    for client in clients:
-        if client != sender_socket:
-            client.send(message.encode())
+# 3. Listen: Mette il server in modalità ascolto (linea libera)
+# Il numero 5 indica la coda massima di client in attesa
+server.listen(5)
+print("Server in ascolto sulla porta 12345...")
 
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.bind(('localhost', 12345))
-server_socket.listen()
+# 4. Accept: Alza la cornetta quando un client bussa.
+# Blocca il programma finché non si connette qualcuno e crea il canale privato 'conn'
+conn, indirizzo = server.accept()
+print(f"Client connesso con successo da: {indirizzo}")
 
+# 5. Ciclo continuo per svuotare il flusso (stream) dei dati
 while True:
-    client_socket, addr = server_socket.accept()
-    clients.append(client_socket)
-    threading.Thread(target=handle_client, args=(client_socket,)).start()
+    # Prende un blocco di massimo 1024 byte dal canale privato
+    data = conn.recv(1024)
+    
+    # Se not data è vero (cioè se il tubo è vuoto perché il client ha chiuso)
+    if not data:
+        # Interrompe il ciclo e non spedisce nulla
+        break
+        
+    # Se invece ci sono dati, li rispedisce identici al client
+    conn.sendall(data)
+
+# 6. Pulizia finale: chiude prima il canale privato e poi il server generale
+conn.close()
+server.close()
+print("Connessione chiusa ordinatamente.")
